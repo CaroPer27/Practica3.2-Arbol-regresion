@@ -1,68 +1,87 @@
-# Leer el conjunto de datos
-data <- read.csv("C:\\Users\\carod\\OneDrive\\Documentos\\Carolina\\R_Mineria\\weather_regresion.csv")
+# Seleccionar el archivo CSV
+ruta_archivo <- file.choose()
 
-targetdev <- function(target) {
-  sd_value <- sd(target)
-  cv <- (sd_value / mean(target)) * 100
-  return(list(sd = sd_value, cv = cv))
+# Leer el archivo CSV
+datos <- read.csv(ruta_archivo)
+
+# Función para dividir los datos en dos grupos según una variable y un umbral
+dividir_datos <- function(datos, variable, umbral) {
+  return(list(izquierda = datos[datos[, variable] <= umbral, ], 
+              derecha = datos[datos[, variable] > umbral, ]))
+}
+# Función para calcular la reducción de la desviación estándar
+reduccion_desviacion_estandar <- function(data, left, right) {
+  sd_before <- sd(data$Hours_Played)
+  sd_left <- sd(left$Hours_Played)
+  sd_right <- sd(right$Hours_Played)
+  
+  n_before <- nrow(data)
+  n_left <- nrow(left)
+  n_right <- nrow(right)
+  
+  reduction <- sd_before - ((n_left/n_before) * sd_left + (n_right/n_before) * sd_right)
+  
+  return(reduction)
 }
 
-atributos <- function(data, labels) {
-  resultados <- list()
-  for (label in labels) {
-    media_atributo <- mean(data[[label]])
-    desviacion_atributo <- sd(data[[label]])
-    
-    resultados[[label]] <- list(media = media_atributo, sd = desviacion_atributo)
-  }
-  return(resultados)
+# Función para calcular el coeficiente de variación
+coeficiente_variacion <- function(target) {
+  return(sd(target) / mean(target))
 }
 
-# Función para construir el árbol de decisión de regresión recursivamente
-construir_arbol <- function(data, target_variable, max_profundidad, profundidad_actual = 0) {
-  if (profundidad_actual == max_profundidad || nrow(data) <= 1) {
-    return(list(prediccion = mean(data[[target_variable]])))
-  }
+# Función para encontrar la mejor división
+encontrar_mejor_division <- function(datos) {
+  mejor_variable <- NULL
+  mejor_umbral <- NULL
+  mejor_reduccion <- -Inf
   
-  variables <- setdiff(names(data), target_variable)
-  mejor_cv <- -Inf
-  mejor_variable <- ""
-  
-  for (variable in variables) {
-    cv <- targetdev(data[[variable]])$cv
-    
-    if (cv > mejor_cv) {
-      mejor_cv <- cv
-      mejor_variable <- variable
+  for (variable in colnames(datos[, -ncol(datos)])) {
+    valores_unicos <- unique(datos[, variable])
+    for (umbral in valores_unicos) {
+      divisiones <- dividir_datos(datos, variable, umbral)
+      if (nrow(divisiones$izquierda) > 0 && nrow(divisiones$derecha) > 0) {
+        reduccion <- reduccion_desviacion_estandar(datos, divisiones$izquierda, divisiones$derecha)
+        if (reduccion > mejor_reduccion) {
+          mejor_reduccion <- reduccion
+          mejor_variable <- variable
+          mejor_umbral <- umbral
+        }
+      }
     }
   }
   
-  if (mejor_cv == -Inf) {
-    return(list(prediccion = mean(data[[target_variable]])))
-  }
-  
-  umbral <- median(data[[mejor_variable]])
-  datos_menores <- data[data[[mejor_variable]] <= umbral, ]
-  datos_mayores <- data[data[[mejor_variable]] > umbral, ]
-  
-  subarbol_menores <- construir_arbol(datos_menores, target_variable, max_profundidad, profundidad_actual + 1)
-  subarbol_mayores <- construir_arbol(datos_mayores, target_variable, max_profundidad, profundidad_actual + 1)
-  
-  return(list(
-    variable = mejor_variable,
-    umbral = umbral,
-    menores = subarbol_menores,
-    mayores = subarbol_mayores
-  ))
+  return(list(variable = mejor_variable, umbral = mejor_umbral))
 }
 
+# Función para construir el árbol de regresión
+construir_arbol_regresion <- function(datos, profundidad, max_profundidad) {
+  if (profundidad >= max_profundidad || nrow(datos) <= 1) {
+    # Hoja: devolver información de la hoja
+    return(list(media = mean(datos$Hours_Played)))
+  } else {
+    # Dividir los datos en dos grupos
+    division <- encontrar_mejor_division(datos)
+    datos_izquierda <- dividir_datos(datos, division$variable, division$umbral)$izquierda
+    datos_derecha <- dividir_datos(datos, division$variable, division$umbral)$derecha
+    
+    # Construir los sub-árboles recursivamente
+    arbol_izquierda <- construir_arbol_regresion(datos_izquierda, profundidad + 1, max_profundidad)
+    arbol_derecha <- construir_arbol_regresion(datos_derecha, profundidad + 1, max_profundidad)
+    
+    # Devolver un nodo con información de división y sub-árboles
+    return(list(variable = division$variable,
+                umbral = division$umbral,
+                izquierda = arbol_izquierda,
+                derecha = arbol_derecha))
+  }
+}
 
-# Construir el árbol de decisión de regresión
+# Construir el árbol de regresión
 profundidad_maxima <- 3
-arbol <- construir_arbol(data, target_variable = "Horas_Jugadas", max_profundidad = profundidad_maxima)
+arbol_regresion <- construir_arbol_regresion(datos, profundidad = 2, max_profundidad = profundidad_maxima)
 
-# Visualizar el árbol
-print(arbol)
+# Imprimir la estructura del árbol
+print(arbol_regresion)
 
 
 
