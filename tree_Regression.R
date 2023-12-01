@@ -53,14 +53,16 @@ construir_arbol_regresion <- function(data, target_col, max_depth, min_elements,
 }
 
 
+#version abriendo archivo
 # Seleccionar el archivo CSV
 ruta_archivo <- file.choose()
 
 # Leer el archivo CSV
 data <- read.csv(ruta_archivo)
-# Supongamos que tienes un vector llamado new_hours_played con los nuevos valores
-new_hours_played <- c(25,30,46,45,52,23,43,35,38,46,48,52,44,30)  # Ejemplo de nuevos 
+# Se modifico hours played porque tenia valores diferentes 
+new_hours_played <- c(25,30,46,45,52,23,43,35,38,46,48,52,44,30)  
 
+#version haciendo manualmente el dataframe 
 data <- data.frame(
   Outlook = c("rainy","rainy","overcast","sunny","sunny","sunny","overcast","rainy","rainy","sunny","rainy","overcast","overcast","sunny"),
   Temp = c("hot","hot","hot","mild","cool","cool","cool","mild","cool","mild","mild","mild","hot","mild"),
